@@ -75,7 +75,11 @@ function App() {
 	});
 
 	// dynamic maps query
-	const [mapsQuery, setMapsQuery] = useState("");
+	const [mapsQuery, setMapsQuery] = useState({
+		wayPoints: "",
+		destination: "",
+		origin: "3600 Peel QC"
+	});
 
 	// handle fab button click
 	const handleFab = () => {
@@ -105,14 +109,34 @@ function App() {
 			.then(res => res.json())
 			.then(res => {
 				if (res.error) throw new Error(res.error);
-				const waypoints = res.queue.reduce((acc, cur) => {
-					acc.push(cur.from, cur.to);
+
+				if (res.queue.length === 0) {
+					setMapsQuery("");
+					return;
+				}
+
+				const newMapsQuery = { ...mapsQuery };
+
+				const waypoints = res.queue.reduce((acc, cur, idx) => {
+					// last element, use as destination
+					if (idx === res.queue.length - 1) {
+						acc.push(cur.from);
+						newMapsQuery.destination = cur.to;
+					} else {
+						acc.push(cur.from, cur.to);
+					}
+
 					return acc;
 				}, []);
 
-				const query = waypoints.join("|");
-				setMapsQuery(query);
-				return query;
+				// pipe together the waypoints for separation
+				newMapsQuery.wayPoints = waypoints.join("|");
+
+				// update local state
+				setMapsQuery(newMapsQuery);
+
+				// return query params
+				return newMapsQuery;
 			})
 			.catch(err => {
 				setError(err.message || err.toString());
@@ -200,7 +224,7 @@ function App() {
 					mapsQuery ? "directions" : "view"
 				}?${
 					mapsQuery
-						? `origin=3600+Peel+QC&destination=3600+Peel+QC&waypoints=${mapsQuery}&`
+						? `origin=${mapsQuery.origin}&destination=${mapsQuery.destination}&waypoints=${mapsQuery.wayPoints}&`
 						: ""
 				}zoom=14&center=45.5017%2C-73.5673&key=AIzaSyAFxV-PWjObeqarsnfmSBS0ShmsLWNktuE`}
 				allowFullScreen
