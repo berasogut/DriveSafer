@@ -97,53 +97,59 @@ function App() {
 	};
 
 	// handle fetching ride data from backend
-	const handleFindRide = () => {
+	const handleFindRide = async () => {
 		setIsLoading(true);
-		fetch("http://192.168.255.59:3000/createTask", {
-			headers: {
-				"Content-Type": "application/json"
-			},
-			method: "POST",
-			body: JSON.stringify(search)
-		})
-			.then(res => res.json())
-			.then(res => {
-				if (res.error) throw new Error(res.error);
+		try {
+			const idToken = await firebase.auth().currentUser.idToken(true);
 
-				if (res.queue.length === 0) {
-					setMapsQuery("");
-					return;
-				}
+			fetch("http://192.168.255.59:4000/createTask", {
+				headers: {
+					"Content-Type": "application/json"
+				},
+				method: "POST",
+				body: JSON.stringify({ search, idToken })
+			})
+				.then(res => res.json())
+				.then(res => {
+					if (res.error) throw new Error(res.error);
 
-				const newMapsQuery = { ...mapsQuery };
-
-				const waypoints = res.queue.reduce((acc, cur, idx) => {
-					// last element, use as destination
-					if (idx === res.queue.length - 1) {
-						acc.push(cur.from);
-						newMapsQuery.destination = cur.to;
-					} else {
-						acc.push(cur.from, cur.to);
+					if (res.queue.length === 0) {
+						setMapsQuery("");
+						return;
 					}
 
-					return acc;
-				}, []);
+					const newMapsQuery = { ...mapsQuery };
 
-				// pipe together the waypoints for separation
-				newMapsQuery.wayPoints = waypoints.join("|");
+					const waypoints = res.queue.reduce((acc, cur, idx) => {
+						// last element, use as destination
+						if (idx === res.queue.length - 1) {
+							acc.push(cur.from);
+							newMapsQuery.destination = cur.to;
+						} else {
+							acc.push(cur.from, cur.to);
+						}
 
-				// update local state
-				setMapsQuery(newMapsQuery);
+						return acc;
+					}, []);
 
-				// return query params
-				return newMapsQuery;
-			})
-			.catch(err => {
-				setError(err.message || err.toString());
-			})
-			.finally(() => {
-				setIsLoading(false);
-			});
+					// pipe together the waypoints for separation
+					newMapsQuery.wayPoints = waypoints.join("|");
+
+					// update local state
+					setMapsQuery(newMapsQuery);
+
+					// return query params
+					return newMapsQuery;
+				})
+				.catch(err => {
+					setError(err.message || err.toString());
+				})
+				.finally(() => {
+					setIsLoading(false);
+				});
+		} catch (err) {
+			setError({ error: err.message || err.toString() });
+		}
 	};
 
 	// manage state of user
